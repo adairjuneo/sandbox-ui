@@ -37,8 +37,9 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': [
         'warn',
         {
-          argsIgnorePattern: 'req|res|next|__',
+          argsIgnorePattern: 'req|res|next',
           destructuredArrayIgnorePattern: '__',
+          ignoreRestSiblings: true,
         },
       ],
       semi: ['warn', 'always'],
@@ -74,6 +75,7 @@ export default tseslint.config(
         'error',
         { allowAllPropertiesOnSameLine: true },
       ],
+      '@typescript-eslint/no-explicit-any': 'off',
     },
     ignores: ['dist/**', 'build/**', '.vscode/*', '.env', 'node_modules'],
   }

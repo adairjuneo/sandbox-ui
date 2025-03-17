@@ -1,0 +1,26 @@
+input {
+  background-color: transparent;
+  color: #242424;
+  font-size: 16px;
+}
+
+.field-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-input {
+  border: 2px solid #CECECE;
+  border-radius: 8px;
+  padding: 12px 8px;
+}
+
+.field-input[data-error=true] {
+  border-color: #DC3E42;
+}
+
+.field-container .field-error {
+  font-size: 14px;
+  color: #DC3E42;
+}
