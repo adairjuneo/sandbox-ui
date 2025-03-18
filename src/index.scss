@@ -79,6 +79,51 @@ code {
   font-size: 14px;
 }
 
+.app {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: row;
+  overflow: auto;
+
+  .navigation {
+    min-width: 256px;
+    border-right: 2px solid #151b23;
+
+    display: flex;
+    flex-direction: column;
+
+    a {
+      color: #151b23;
+      text-decoration: none;
+      padding: 1rem;
+      border-bottom: 2px solid transparent;
+
+      &.active {
+        color: #151b23;
+        background-color: #CECECE;
+        border-bottom: 2px solid #151b23;
+      }
+
+      &:hover {
+        border-bottom: 2px solid #151b23;
+      }
+
+      &:active {
+        color: #151b23;
+      }
+    }
+  }
+
+  .content {
+    flex: 1;
+    padding: 0.5rem 1rem;
+
+    overflow: auto;
+  }
+}
+
+
 .pl-c {
   color: var(--color-prettylights-syntax-comment);
 }
