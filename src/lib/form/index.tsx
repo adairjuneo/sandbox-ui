@@ -1,9 +1,9 @@
 import './styles.css';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { infer as ZodInfer, ZodSchema } from 'zod';
 
-type FieldErrors<T> = Partial<Record<keyof T, string>>;
+type FieldErrors<T> = Partial<Record<keyof T, string[]>>;
 
 export function useForm<TSchema extends ZodSchema<any>>(schema: TSchema) {
   type FormData = ZodInfer<TSchema>;
@@ -11,14 +11,25 @@ export function useForm<TSchema extends ZodSchema<any>>(schema: TSchema) {
   const [values, setValues] = useState<FormData>({} as FormData);
   const [errors, setErrors] = useState<FieldErrors<FormData>>({});
 
+  console.info('errors =>> ', errors);
+
+  const isValid = useMemo(
+    () => Object.values(errors).every((errArray) => errArray?.length === 0),
+    [errors]
+  );
+
   const validateField = (name: keyof FormData, value: any) => {
     const result = schema.safeParse({ ...values, [name]: value });
-    if (!result.success) {
-      const fieldError = result.error.flatten().fieldErrors[name]?.[0] || '';
-      setErrors((prev) => ({ ...prev, [name]: fieldError }));
-    } else {
-      setErrors((prev) => ({ ...prev, [name]: undefined }));
-    }
+
+    setErrors((prev) => {
+      if (!result.success) {
+        const fieldErrors = result.error.flatten().fieldErrors[name] || [];
+        return { ...prev, [name]: fieldErrors };
+      }
+      const currentErrors = { ...prev };
+      delete currentErrors[name];
+      return currentErrors;
+    });
   };
 
   const register = (name: keyof FormData) => ({
@@ -29,10 +40,11 @@ export function useForm<TSchema extends ZodSchema<any>>(schema: TSchema) {
       setValues((prev) => ({ ...prev, [name]: newValue }));
       validateField(name, newValue);
     },
+    onBlur: () => validateField(name, values[name]),
   });
 
   const setExternalErrors = (externalErrors: FieldErrors<FormData>) => {
-    setErrors(externalErrors);
+    setErrors((prev) => ({ ...prev, ...externalErrors }));
   };
 
   const handleSubmit =
@@ -43,15 +55,22 @@ export function useForm<TSchema extends ZodSchema<any>>(schema: TSchema) {
         callback(result.data);
       } else {
         const fieldErrors = result.error.flatten().fieldErrors;
-        const formattedErrors: FieldErrors<FormData> = Object.keys(
-          fieldErrors
-        ).reduce((acc, key) => {
-          acc[key as keyof FormData] = fieldErrors[key]?.[0] || '';
-          return acc;
-        }, {} as FieldErrors<FormData>);
-        setErrors(formattedErrors);
+        setErrors((prev) => {
+          const formattedErrors: FieldErrors<FormData> = { ...prev };
+          Object.keys(fieldErrors).forEach((key) => {
+            formattedErrors[key as keyof FormData] = fieldErrors[key] || [];
+          });
+          return formattedErrors;
+        });
       }
     };
 
-  return { values, errors, register, handleSubmit, setExternalErrors };
+  return {
+    values,
+    errors,
+    isValid,
+    register,
+    handleSubmit,
+    setExternalErrors,
+  };
 }

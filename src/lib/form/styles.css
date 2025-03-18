@@ -10,6 +10,11 @@ input {
   gap: 4px;
 }
 
+.field-label:has(+ input:required)::after {
+  content: " *";
+  color: #242424;
+}
+
 .field-input {
   border: 2px solid #CECECE;
   border-radius: 8px;
