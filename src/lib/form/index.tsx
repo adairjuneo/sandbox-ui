@@ -6,19 +6,20 @@ import { infer as ZodInfer, ZodSchema } from 'zod';
 type FieldErrors<T> = Partial<Record<keyof T, string[]>>;
 
 export function useForm<TSchema extends ZodSchema<any>>(schema: TSchema) {
-  type FormData = ZodInfer<TSchema>;
+  type FormDataType = ZodInfer<TSchema>;
 
-  const [values, setValues] = useState<FormData>({} as FormData);
-  const [errors, setErrors] = useState<FieldErrors<FormData>>({});
+  const [values, setValues] = useState<FormDataType>({} as FormDataType);
+  const [errors, setErrors] = useState<FieldErrors<FormDataType>>({});
 
-  console.info('errors =>> ', errors);
+  const isValid = useMemo(() => {
+    return (
+      schema.safeParse({ ...values }).success &&
+      Object.values(errors).every((errArray) => errArray?.length === 0)
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [errors]);
 
-  const isValid = useMemo(
-    () => Object.values(errors).every((errArray) => errArray?.length === 0),
-    [errors]
-  );
-
-  const validateField = (name: keyof FormData, value: any) => {
+  const validateField = (name: keyof FormDataType, value: any) => {
     const result = schema.safeParse({ ...values, [name]: value });
 
     setErrors((prev) => {
@@ -32,7 +33,7 @@ export function useForm<TSchema extends ZodSchema<any>>(schema: TSchema) {
     });
   };
 
-  const register = (name: keyof FormData) => ({
+  const register = (name: keyof FormDataType) => ({
     name,
     value: values[name] || '',
     onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,12 +44,12 @@ export function useForm<TSchema extends ZodSchema<any>>(schema: TSchema) {
     onBlur: () => validateField(name, values[name]),
   });
 
-  const setExternalErrors = (externalErrors: FieldErrors<FormData>) => {
+  const setExternalErrors = (externalErrors: FieldErrors<FormDataType>) => {
     setErrors((prev) => ({ ...prev, ...externalErrors }));
   };
 
   const handleSubmit =
-    (callback: (data: FormData) => void) => (event: React.FormEvent) => {
+    (callback: (data: FormDataType) => void) => (event: React.FormEvent) => {
       event.preventDefault();
       const result = schema.safeParse(values);
       if (result.success) {
@@ -56,9 +57,9 @@ export function useForm<TSchema extends ZodSchema<any>>(schema: TSchema) {
       } else {
         const fieldErrors = result.error.flatten().fieldErrors;
         setErrors((prev) => {
-          const formattedErrors: FieldErrors<FormData> = { ...prev };
+          const formattedErrors: FieldErrors<FormDataType> = { ...prev };
           Object.keys(fieldErrors).forEach((key) => {
-            formattedErrors[key as keyof FormData] = fieldErrors[key] || [];
+            formattedErrors[key as keyof FormDataType] = fieldErrors[key] || [];
           });
           return formattedErrors;
         });

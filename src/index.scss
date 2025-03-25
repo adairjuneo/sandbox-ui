@@ -120,6 +120,24 @@ code {
     padding: 0.5rem 1rem;
 
     overflow: auto;
+
+    .header-page {
+      margin-bottom: 1rem;
+    }
+
+    .content-page {
+      padding: 1rem 0px;
+    }
+
+    .title-page {
+      font-size: 1.75rem;
+      font-weight: 600;
+    }
+
+    .description-page {
+      font-size: 1rem;
+      font-weight: 500;
+    }
   }
 }
 

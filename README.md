@@ -1,54 +1,55 @@
-# React + TypeScript + Vite
+# Linear UI 🔴⚛️
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Biblioteca de componente para criação interface, utilizada em aplicações Web da Linear Sistemas.
 
-Currently, two official plugins are available:
+## Dúvidas
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Vamos refazer do zero componente de Formulário?
+  - Prós
+    - [ ] Mais escalável.
+    - [ ] Mais otimizado.
+    - [ ] Código TypeScript moderno.
+    - [ ] Livre de HOC's e Field Compositions.
+    - [ ] Possibilitará criação de testes unitários mais completos.
+    - [ ] Nova metodologia de validações de campos(mais performático).
+  - Contras
+    - [ ] Tempo de criação.
+    - [ ] Padrões e "segredos" podem ser deixados para trás.
+    - [ ] Sem possibilidade de integração com um possível novo componente.
+    - [ ] Não "integrável" com formas de validações atual.
+- Vamos refazer do zero componentes Field's(Text, Number, Date, etc...)?
+  - Prós
+    - [ ] Código TypeScript moderno.
+    - [ ] Livre de HOC's e Field Compositions.
+    - [ ] Possibilitará criação de testes unitários mais completos.
+    - [ ] Criação a partir do **composition pattern**.
+  - Contras
+    - [ ] Tempo de criação.
+    - [ ] Padrões e "segredos" podem ser deixados para trás.
+    - [ ] Sem possibilidade de integração com formulário antigo.
+    - [ ] Não "integrável" com padrões definidos no linear-react-components-ui.
 
-## Expanding the ESLint configuration
+## Componentes
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Formulário
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-});
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x';
-import reactDom from 'eslint-plugin-react-dom';
-
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-});
-```
+- Form
+  - [ ] Deve ser possível validar os campos através de um schema de validação.
+  - [ ] Deve ser possível obter os erros de validação que ocorrem durante o input de dados.
+  - [ ] Deve ser possível exibir os erros na interface em tempo real para o usuário.
+  - [ ] Deve ser possível obter uma variável informando em tempo real se o formulário é valido ou não.
+  - [ ] Deve ser possível encaminhar erros externos ao formulário e serem exibidos para o usuário em tempo real.
+  - [ ] Deve ser possível utilizar uma função callback para efetuar reset dos campos do formulário.
+  - [ ] Deve ser possível efetuar ou não submit através de acessibilidade utilizando tecla <kbd>Enter</kbd>.
+  - [ ] Deve ser possível obter uma variável com todos os dados em tempo real inseridos pelo usuário.
+- TextField
+  - [ ] Deve ser possível que esse componente siga todas as regras de estilização e padrões de animação presentes no **linear-react-components-ui**.
+  - [ ] Deve ser possível integrar o componente ao formulário.
+    - [ ] Erros.
+    - [ ] Validações.
+    - [ ] Callbacks.
+  - [ ] Deve ser possível utilizar esse componente sem a necessidade de formulário.
+  - [ ] Deve ser possível que esse componente aceite ser utilizado somente como **leitura**.
+  - [ ] Deve ser possível que esse componente aceite elementos(div, span, svg, etc...) a sua direita e esquerda.
+  - [ ] Deve ser possível que esse componente aceite um **hint** que se posiciona abaixo do input.
+  - [ ] Deve ser possível que esse componente receba uma propriedade **permissionAttr** para validação de permissões de acesso.
