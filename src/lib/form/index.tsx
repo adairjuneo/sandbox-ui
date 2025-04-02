@@ -1,5 +1,3 @@
-import './styles.css';
-
 import React, { useMemo, useState } from 'react';
 import { infer as ZodInfer, ZodSchema } from 'zod';
 
