@@ -1,0 +1,36 @@
+.table-container {
+  height: calc(100vh - 16px);
+  overflow: scroll;
+}
+
+table {
+  min-width: 2000px;
+  border-collapse: collapse;
+  border: 2px solid #505050;
+  font-size: 1rem;
+  letter-spacing: 1px;
+
+  thead {
+    background-color: #d4efff;
+
+    th {
+      text-align: left;
+    }
+  }
+
+  tbody {
+    tr:nth-of-type(odd) {
+      background-color: #d2d2d2;
+    }
+  }
+
+  tr {
+    border-bottom: 2px solid #505050;
+  }
+
+  th,
+  td {
+    padding: 4px 6px;
+    border-right: 2px solid #505050;
+  }
+}

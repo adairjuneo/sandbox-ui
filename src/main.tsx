@@ -7,6 +7,7 @@ import { BrowserRouter, Route, Routes } from 'react-router';
 import App from './App';
 import HomePage from './routes/@home';
 import FormPage from './routes/form';
+import TablePage from './routes/table';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -15,6 +16,7 @@ createRoot(document.getElementById('root')!).render(
         <Route element={<App />}>
           <Route index path="/" element={<HomePage />} />
           <Route path="/form" element={<FormPage />} />
+          <Route path="/table" element={<TablePage />} />
         </Route>
       </Routes>
     </BrowserRouter>

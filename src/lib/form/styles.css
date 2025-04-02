@@ -23,6 +23,7 @@ input {
 
 .field-input[data-error=true] {
   border-color: #DC3E42;
+  background-color: #FFDBDC;
 }
 
 .field-container .field-error {

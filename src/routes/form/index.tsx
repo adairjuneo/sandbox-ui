@@ -41,6 +41,7 @@ const FormPage = () => {
         >
           <TextField
             {...register('nome')}
+            autoFocus
             label="Name"
             type="text"
             errors={errors.nome}

@@ -8,6 +8,7 @@ const App = () => {
         <nav className="navigation">
           <NavLink to="/">Home</NavLink>
           <NavLink to="/form">Form</NavLink>
+          <NavLink to="/table">Table</NavLink>
         </nav>
         <main className="content">
           <Outlet />
