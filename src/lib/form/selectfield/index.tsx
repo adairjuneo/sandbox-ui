@@ -1,20 +1,89 @@
-// import './styles.scss';
+import './styles.scss';
 
+import { ChevronDown } from 'lucide-react';
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { v1 } from 'uuid';
 
-// APAGAR ----------------------------------------------------------
+interface SelectFieldContextProps {
+  label?: string;
+  listBoxOpen: boolean;
+  filterValue?: string;
+  nameSelect?: string;
+  valueSelect?: string;
+  activeDescendant?: string;
+  handleOnChangeForm?: (value?: string, label?: string) => void;
+  selectContainerRef: React.RefObject<HTMLDivElement | null>;
+}
 
-// ✅ Bloquear o acesso ao body utilizando portal, posicionando o listbox abaixo do selectfield e calculando onde ele está para posicionar.
-// ✅ Desabilitar o evento de scroll fora do listbox, assim eh posivel garantir que não ira sair de posicao os elementos do portal.
-// ❔ Encontrar forma de vincular o {...register} do useForm(formulario) nesse componente de SelectField.
+const SelectFieldContext = React.createContext({} as SelectFieldContextProps);
 
-const listaTeste = new Array(100).fill({}).map((_, index) => ({
-  value: String(index + 1),
-  label: String('Valor Teste ').concat(String(index + 1)),
-}));
-// -----------------------------------------------------------------
+interface SelectFieldListBoxProps extends React.ComponentProps<'div'> {
+  children: React.ReactNode;
+}
+
+export const ListBox = React.forwardRef<
+  HTMLDivElement,
+  SelectFieldListBoxProps
+>((props, ref) => {
+  const { children, ...rest } = props;
+  const { label, listBoxOpen, selectContainerRef } =
+    React.useContext(SelectFieldContext);
+
+  const [listBoxStyles, setListBoxStyles] = React.useState<React.CSSProperties>(
+    {}
+  );
+
+  React.useEffect(() => {
+    // const selectPositionOnScreen =
+    //   selectContainerRef.current?.getBoundingClientRect();
+
+    // setListBoxStyles((prevState) => ({
+    //   ...prevState,
+    //   top: selectPositionOnScreen?.top,
+    //   left: selectPositionOnScreen?.left,
+    //   minWidth: selectPositionOnScreen?.width,
+    // }));
+
+    const updatePosition = () => {
+      const selectPositionOnScreen =
+        selectContainerRef.current?.getBoundingClientRect();
+      if (selectPositionOnScreen) {
+        setListBoxStyles({
+          top: selectPositionOnScreen.top + window.scrollY,
+          left: selectPositionOnScreen.left + window.scrollX,
+          minWidth: selectPositionOnScreen.width,
+          position: 'absolute',
+        });
+      }
+    };
+
+    if (listBoxOpen) {
+      updatePosition();
+      window.addEventListener('resize', updatePosition);
+      window.addEventListener('scroll', updatePosition, true); // capture phase
+    }
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [listBoxOpen, selectContainerRef]);
+
+  return (
+    <div
+      ref={ref}
+      style={listBoxStyles}
+      aria-expanded={listBoxOpen}
+      className="select-field-listbox"
+      {...rest}
+    >
+      <ul role="listbox" aria-label={label} id={SELECT_FIELD_CONTROLS_ID}>
+        {children}
+      </ul>
+    </div>
+  );
+});
 
 interface SelectFieldSlotProps extends React.ComponentProps<'div'> {
   children: React.ReactNode;
@@ -40,262 +109,321 @@ export const Slot = React.forwardRef<HTMLDivElement, SelectFieldSlotProps>(
 
 Slot.displayName = 'SelectFieldSlot';
 
+interface SelectFieldItemProps extends React.ComponentProps<'li'> {
+  value: string;
+  label: string;
+  disabled?: boolean;
+  children: React.ReactNode;
+}
+
+export const Item = React.forwardRef<HTMLLIElement, SelectFieldItemProps>(
+  (props, ref) => {
+    const { disabled, children } = props;
+    const { filterValue, valueSelect, activeDescendant, handleOnChangeForm } =
+      React.useContext(SelectFieldContext);
+
+    const isInFocus = Boolean(activeDescendant === props.value);
+    const ariaSelected = Boolean(props.value === valueSelect);
+    const hasPartOfFilter = Boolean(
+      String(props.label)
+        .toLowerCase()
+        .includes(filterValue?.toString().toLowerCase() ?? '')
+    );
+
+    return (
+      <li
+        ref={ref}
+        key={props.value}
+        id={props.value}
+        hidden={props.hidden || !hasPartOfFilter}
+        tabIndex={!disabled ? 0 : -1}
+        aria-selected={ariaSelected}
+        aria-hidden={props['aria-hidden'] || !hasPartOfFilter}
+        aria-disabled={disabled}
+        data-content-value={props.value}
+        data-content-label={props.label}
+        data-state-in-focus={isInFocus}
+        data-state-filtered={hasPartOfFilter}
+        role="option"
+        onClick={() => {
+          handleOnChangeForm?.(props.value, props.label);
+        }}
+        onMouseDown={(event) => {
+          event.preventDefault();
+        }}
+        {...props}
+      >
+        {children}
+      </li>
+    );
+  }
+);
+Item.displayName = 'SelectFieldItem';
+
 interface SelectFieldInputProps extends React.ComponentProps<'input'> {
-  hint?: string | string[];
   label?: string;
   errors?: string[];
 }
 
+const NAVIGATION_KEYS = ['Escape', 'ArrowDown', 'ArrowUp', 'Enter'];
 const SELECT_FIELD_CONTROLS_ID = `select-field-controls-${v1()}`;
 export const Input = React.forwardRef<HTMLInputElement, SelectFieldInputProps>(
   (props, ref) => {
-    const { name, label, errors, children, ...rest } = props;
+    const {
+      name,
+      label,
+      errors,
+      children,
+      onChange: onChangeForm,
+      ...rest
+    } = props;
+
+    const [inputValue, setInputValue] = React.useState('');
+    const [filterValue, setFilterValue] = React.useState('');
     const [listBoxOpen, setListBoxOpen] = React.useState(false);
-    const [activeDescendant, setActiveDescendant] = React.useState<
-      string | undefined
-    >(undefined);
+    const [activeDescendant, setActiveDescendant] = React.useState<string>();
+
     const selectContainerRef = React.useRef<HTMLDivElement | null>(null);
     const selectListBoxRef = React.useRef<HTMLDivElement | null>(null);
     const selectInputRef = React.useRef<HTMLInputElement | null>(null);
-    const optionsRef = React.useRef<HTMLLIElement[]>([]);
 
-    const leftSlotElements: React.ReactNode[] = [];
-    const rightSlotElements: React.ReactNode[] = [];
+    const hasValidationErrors = Boolean(errors?.length);
+    const isReadOnly = Boolean(props.readOnly);
+
+    const { leftSlotElements, rightSlotElements } = React.useMemo(() => {
+      const left: React.ReactNode[] = [];
+      const right: React.ReactNode[] = [];
+
+      React.Children.forEach(children, (childElement) => {
+        if (
+          React.isValidElement<SelectFieldSlotProps>(childElement) &&
+          childElement.type === Slot
+        ) {
+          const listOfChild = React.cloneElement(childElement, {
+            key: childElement.key ?? childElement.props.position,
+          });
+          (childElement.props.position === 'left' ? left : right).push(
+            listOfChild
+          );
+        }
+      });
+
+      return { leftSlotElements: left, rightSlotElements: right };
+    }, [children]);
 
     const hasLeftSlotElements = Boolean(leftSlotElements?.length);
     const hasRightSlotElements = Boolean(rightSlotElements?.length);
-    const hasValidationErrors = Boolean(errors?.length);
-    const hasHintMessages = Boolean(props.hint?.length);
-    const isReadOnly = Boolean(props.readOnly);
-    const selectPositionOnScreen =
-      selectContainerRef.current?.getBoundingClientRect() || {
-        top: 0,
-        left: 0,
-        width: 'auto',
-      };
 
-    const listBoxStyles: React.CSSProperties = {
-      top: selectPositionOnScreen.top,
-      left: selectPositionOnScreen.left,
-      minWidth: selectPositionOnScreen.width,
+    const handleOnChangeForm = (value?: string, label?: string) => {
+      const syntheticEvent = {
+        target: {
+          name,
+          value,
+        },
+      } as React.ChangeEvent<HTMLInputElement>;
+      onChangeForm?.(syntheticEvent);
+      setListBoxOpen(false);
+      setFilterValue('');
+      setInputValue(label ?? '');
     };
 
-    React.Children.forEach(children, (child) => {
-      if (
-        React.isValidElement<SelectFieldSlotProps>(child) &&
-        child.type === Slot
-      ) {
-        const slot = React.cloneElement(child);
-        switch (child.props.position) {
-          case 'left':
-            leftSlotElements.push(slot);
-            break;
-          case 'right':
-            rightSlotElements.push(slot);
-            break;
-          default:
-            break;
-        }
-      }
-    });
-
-    const createListBoxWithPortal = () => {
-      return createPortal(
-        <div
-          ref={selectListBoxRef}
-          id={SELECT_FIELD_CONTROLS_ID}
-          style={listBoxStyles}
-          aria-expanded={listBoxOpen}
-          className="select-field-listbox"
-        >
-          <ul role="listbox" aria-label={label} id={SELECT_FIELD_CONTROLS_ID}>
-            {listaTeste.map((item, index) => {
-              return (
-                <li
-                  ref={(el) => {
-                    if (el) optionsRef.current[index] = el;
-                  }}
-                  aria-selected={activeDescendant === item.value}
-                  role="option"
-                  key={item.value}
-                  id={item.value}
-                  value={item.value}
-                >
-                  {item.label}
-                </li>
-              );
-            })}
-          </ul>
-        </div>,
-        document.body
-      );
+    const handleOnBlur = (event: React.FocusEvent<HTMLInputElement>) => {
+      setListBoxOpen(false);
+      setFilterValue('');
+      props?.onBlur?.(event);
     };
 
-    const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleOnFocus = (event: React.FocusEvent<HTMLInputElement>) => {
+      setListBoxOpen(true);
+      props?.onFocus?.(event);
+    };
+
+    const handleOnChangeInput = (
+      event: React.ChangeEvent<HTMLInputElement>
+    ) => {
+      setFilterValue(event.target.value);
+      setInputValue(event.target.value);
+    };
+
+    const handleOnKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+      props?.onKeyDown?.(event);
+
       if (!listBoxOpen) {
         if (
           event.key === 'ArrowDown' &&
           selectInputRef.current === document.activeElement
         ) {
           event.preventDefault();
-          event.stopPropagation();
           setListBoxOpen(true);
+          setActiveDescendant(props.value?.toString() ?? undefined);
         }
       }
 
-      const currentIndex = optionsRef.current.findIndex(
-        (option) => option.id === activeDescendant
-      );
-      let nextIndex = currentIndex;
+      if (listBoxOpen && NAVIGATION_KEYS.includes(event.key)) {
+        event.preventDefault();
+      }
 
-      if (listBoxOpen) {
-        if (event.key === 'Escape') {
-          event.preventDefault();
-          setListBoxOpen(false);
-          selectInputRef.current?.focus();
-        } else if (event.key === 'ArrowDown') {
-          event.preventDefault();
-          nextIndex = Math.min(currentIndex + 1, optionsRef.current.length - 1);
-        } else if (event.key === 'ArrowUp') {
-          event.preventDefault();
-          nextIndex = Math.max(currentIndex - 1, 0);
-        } else if (event.key === 'Enter' && activeDescendant) {
-          event.preventDefault();
-          const selectedOption = optionsRef.current[nextIndex];
-          if (selectedOption) {
-            selectedOption.click();
+      requestAnimationFrame(() => {
+        const ulListElement = selectListBoxRef.current?.firstElementChild;
+
+        const liElementsFiltered = (ulListElement?.querySelectorAll(
+          'li[data-state-filtered="true"]'
+        ) ?? []) as HTMLLIElement[];
+
+        const currentElementIndex = Array.from(liElementsFiltered).findIndex(
+          (liElement) => liElement.id === activeDescendant
+        );
+
+        let nextElementIndex = currentElementIndex;
+
+        if (listBoxOpen) {
+          if (NAVIGATION_KEYS.includes(event.key)) {
+            if (event.key === 'Escape') {
+              setListBoxOpen(false);
+              setFilterValue('');
+              selectInputRef.current?.focus();
+            } else if (event.key === 'ArrowDown') {
+              nextElementIndex = Math.min(
+                currentElementIndex + 1,
+                liElementsFiltered.length - 1
+              );
+            } else if (event.key === 'ArrowUp') {
+              nextElementIndex = Math.max(currentElementIndex - 1, 0);
+            } else if (event.key === 'Enter' && activeDescendant) {
+              const selectedLIOption = liElementsFiltered[nextElementIndex];
+              if (selectedLIOption) {
+                selectedLIOption.click();
+              }
+            }
+
+            const nextLIOption = liElementsFiltered[nextElementIndex];
+            if (nextLIOption) {
+              setActiveDescendant(nextLIOption?.id ?? '');
+              nextLIOption.scrollIntoView({ block: 'nearest' });
+            }
+          } else {
+            const firstLIOption = liElementsFiltered[0];
+            setActiveDescendant(firstLIOption?.id ?? '');
           }
-        }
-
-        const nextOption = optionsRef.current[nextIndex];
-        if (nextOption) {
-          setActiveDescendant(nextOption.id);
-          nextOption.scrollIntoView({ block: 'nearest' });
-        }
-      } else return {};
+        } else return null;
+      });
     };
 
-    React.useEffect(() => {
-      if (listBoxOpen) {
-        const listBoxWithItens = selectListBoxRef.current?.firstElementChild;
-        if (listBoxWithItens?.childNodes.length) {
-          const listOfSelectableItens = Array.from(
-            listBoxWithItens?.childNodes
-          ) as HTMLLIElement[];
-          optionsRef.current = listOfSelectableItens;
-
-          const currentIndex = listOfSelectableItens.findIndex(
-            (option) => option.ariaSelected === 'true'
-          );
-          const nextOption = optionsRef.current[currentIndex];
-          if (nextOption) {
-            setActiveDescendant(nextOption.id);
-            nextOption.scrollIntoView({ block: 'nearest', behavior: 'auto' });
-          }
-        }
-      }
-
-      const handleScroll = (event: Event) => {
-        if (listBoxOpen && selectListBoxRef.current) {
-          if (!selectListBoxRef.current.contains(event.target as Node)) {
-            event.preventDefault();
-          }
-        }
-      };
-
-      const currentScrollWidthSize = String(
-        window.innerWidth - document.documentElement.clientWidth
-      ).concat('px');
-
-      if (listBoxOpen) {
-        document.body.style.overflow = 'hidden';
-        document.body.style.setProperty(
-          'margin-right',
-          currentScrollWidthSize,
-          'important'
-        );
-        document.addEventListener('wheel', handleScroll, { passive: false });
-        document.addEventListener('touchmove', handleScroll, {
-          passive: false,
-        });
-      } else {
-        document.body.style.overflow = '';
-        document.body.style.removeProperty('margin-right');
-        document.removeEventListener('wheel', handleScroll);
-        document.removeEventListener('touchmove', handleScroll);
-      }
-
-      return () => {
-        document.body.style.overflow = '';
-        document.body.style.removeProperty('margin-right');
-        document.removeEventListener('wheel', handleScroll);
-        document.removeEventListener('touchmove', handleScroll);
-      };
-    }, [listBoxOpen]);
+    const contextValues = React.useMemo(
+      () => ({
+        label: props.label,
+        listBoxOpen,
+        filterValue,
+        nameSelect: props.name?.toString(),
+        valueSelect: props.value?.toString(),
+        activeDescendant,
+        handleOnChangeForm,
+        selectContainerRef,
+      }),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [listBoxOpen, filterValue, props.name, props.value, activeDescendant]
+    );
 
     return (
-      <div className="select-field-root" data-state-error={hasValidationErrors}>
-        {label && (
-          <label className="select-field-label" title={label} htmlFor={name}>
-            {label}
-          </label>
-        )}
+      <SelectFieldContext.Provider value={contextValues}>
         <div
-          ref={selectContainerRef}
-          className="select-field-container"
-          aria-expanded={listBoxOpen}
+          className="select-field-root"
+          data-state-error={hasValidationErrors}
         >
-          {hasLeftSlotElements && leftSlotElements}
-          <input
-            ref={(element) => {
-              if (element) {
-                selectInputRef.current = element;
-                if (typeof ref === 'function') {
-                  ref(element);
-                } else if (ref) {
-                  ref.current = element;
-                }
-              }
-            }}
-            type="text"
-            role="combobox"
-            aria-autocomplete="list"
+          {label && (
+            <label className="select-field-label" title={label} htmlFor={name}>
+              {label}
+            </label>
+          )}
+          <div
+            ref={selectContainerRef}
+            className="select-field-container"
             aria-expanded={listBoxOpen}
-            aria-controls={SELECT_FIELD_CONTROLS_ID}
-            aria-activedescendant={activeDescendant}
-            onKeyDown={handleKeyDown}
-            id={name}
-            tabIndex={!isReadOnly ? 0 : -1}
-            className="select-field-input"
-            placeholder={!label ? name : rest.placeholder}
-            data-state-error={hasValidationErrors}
-            data-state-read-only={isReadOnly}
-            {...rest}
-          />
-          {hasRightSlotElements && rightSlotElements}
-          <div className="select-field-trigger">
-            <button
-              type="button"
-              tabIndex={-1}
-              aria-label={label}
+          >
+            {hasLeftSlotElements && leftSlotElements}
+            <input
+              ref={(element) => {
+                if (element) {
+                  selectInputRef.current = element;
+                  if (typeof ref === 'function') {
+                    ref(element);
+                  } else if (ref) {
+                    ref.current = element;
+                  }
+                }
+              }}
+              type="text"
+              role="combobox"
+              aria-autocomplete="list"
               aria-expanded={listBoxOpen}
               aria-controls={SELECT_FIELD_CONTROLS_ID}
-              onClick={() => {
-                setListBoxOpen((prevState) => !prevState);
-                selectInputRef.current?.focus();
-              }}
-            >
-              🔽
-            </button>
+              aria-activedescendant={activeDescendant}
+              tabIndex={!isReadOnly ? 0 : -1}
+              className="select-field-input"
+              placeholder={!label ? name : rest.placeholder}
+              data-state-error={hasValidationErrors}
+              data-state-read-only={isReadOnly}
+              {...rest}
+              id={name}
+              value={inputValue}
+              onBlur={handleOnBlur}
+              onFocus={handleOnFocus}
+              onKeyDown={handleOnKeyDown}
+              onChange={handleOnChangeInput}
+            />
+            {hasRightSlotElements && rightSlotElements}
+            <div className="select-field-trigger">
+              <button
+                type="button"
+                tabIndex={-1}
+                aria-label={label}
+                aria-expanded={listBoxOpen}
+                aria-controls={SELECT_FIELD_CONTROLS_ID}
+                onClick={() => {
+                  setListBoxOpen((prevState) => {
+                    if (prevState) {
+                      setFilterValue('');
+                    }
+                    return !prevState;
+                  });
+                }}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                }}
+              >
+                <ChevronDown />
+              </button>
+            </div>
+            {listBoxOpen &&
+              createPortal(
+                <ListBox ref={selectListBoxRef}>{children}</ListBox>,
+                document.body
+              )}
           </div>
-          {listBoxOpen && createListBoxWithPortal()}
+          <span className="select-field-error">
+            {errors?.map((error) => error)}
+          </span>
         </div>
-        <span className="select-field-error">
-          {errors?.map((error) => error)}
-        </span>
-      </div>
+      </SelectFieldContext.Provider>
     );
   }
 );
 
 Input.displayName = 'SelectFieldInput';
+
+/* 
+  - Encontrar uma solução para exibir o indicador de "Nenhuma opção encontrada." na listbox caso filtro retorne 0(zero) resultados.
+
+  {filtroResultados.length === 0 && (
+    <li
+      tabIndex={-1}
+      aria-disabled={true}
+      key="not-found-values"
+      role="option"
+      id="not-found-values"
+      className="listbox-item-not-found-values">
+      {notFoundValuesText}
+    </li>
+  )}
+
+*/

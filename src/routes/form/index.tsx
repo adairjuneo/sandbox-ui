@@ -1,7 +1,9 @@
+import { faker } from '@faker-js/faker';
 import { MDXProvider } from '@mdx-js/react';
 import { z } from 'zod';
 
 import { useForm } from '@/lib/form';
+import * as SelectField from '@/lib/form/selectfield';
 import * as TextField from '@/lib/form/textfield';
 
 const components = {
@@ -11,13 +13,21 @@ const components = {
 const formSchema = z.object({
   nome: z
     .string({ message: 'Campo obrigatório' })
-    .min(6, { message: 'Mínimo de 6 caracteres' }),
+    .min(6, { message: 'Mínimo de 6 caracteres' })
+    .optional(),
   email: z
     .string({ message: 'Campo obrigatório' })
-    .email({ message: 'Deve ser um e-mail valido' }),
+    .email({ message: 'Deve ser um e-mail valido' })
+    .optional(),
   disabled: z.string().optional(),
   readonly: z.string().optional(),
+  book: z.string().optional(),
 });
+
+const listaFake = new Array(100).fill({}).map((__, index) => ({
+  name: faker.book.title(),
+  value: String(index + 1),
+}));
 
 const FormPage = () => {
   const { errors, register, handleSubmit, isValid } = useForm(formSchema);
@@ -78,6 +88,48 @@ const FormPage = () => {
             value="Sea mazim nonumy eos diam sit."
             placeholder="Readonly for tests"
           />
+
+          <SelectField.Input
+            {...register('book')}
+            label="Book"
+            errors={errors.book}
+            placeholder="Select a book"
+          >
+            {listaFake.map((listItem) => {
+              return (
+                <SelectField.Item
+                  key={listItem.value}
+                  label={listItem.name}
+                  value={listItem.value}
+                >
+                  {listItem.name}
+                </SelectField.Item>
+              );
+            })}
+          </SelectField.Input>
+
+          <div style={{ margin: '16px 0' }}>
+            <select
+              role="none"
+              name="teste-select"
+              id="teste-select"
+              onChange={(e) => {
+                console.log('event =>> ', e.target.value);
+              }}
+            >
+              {listaFake.map((listItem) => {
+                return (
+                  <option
+                    key={listItem.value}
+                    label={listItem.name}
+                    value={listItem.value}
+                  >
+                    {listItem.name}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
 
           <div>
             <button
