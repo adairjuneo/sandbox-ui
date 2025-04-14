@@ -1,5 +1,6 @@
 import './styles.scss';
 
+import _ from 'lodash';
 import { ChevronDown } from 'lucide-react';
 import React from 'react';
 import { createPortal } from 'react-dom';
@@ -11,9 +12,12 @@ interface SelectFieldContextProps {
   filterValue?: string;
   nameSelect?: string;
   valueSelect?: string;
+  liSelectedRef: React.RefObject<HTMLLIElement | null>;
   activeDescendant?: string;
   handleOnChangeForm?: (value?: string, label?: string) => void;
   selectContainerRef: React.RefObject<HTMLDivElement | null>;
+  filterResultIsEmpty: boolean;
+  notFoundFilterLabel: string;
 }
 
 const SelectFieldContext = React.createContext({} as SelectFieldContextProps);
@@ -27,24 +31,29 @@ export const ListBox = React.forwardRef<
   SelectFieldListBoxProps
 >((props, ref) => {
   const { children, ...rest } = props;
-  const { label, listBoxOpen, selectContainerRef } =
-    React.useContext(SelectFieldContext);
+  const {
+    label,
+    listBoxOpen,
+    selectContainerRef,
+    filterResultIsEmpty,
+    notFoundFilterLabel,
+    liSelectedRef,
+  } = React.useContext(SelectFieldContext);
 
   const [listBoxStyles, setListBoxStyles] = React.useState<React.CSSProperties>(
     {}
   );
 
   React.useEffect(() => {
-    // const selectPositionOnScreen =
-    //   selectContainerRef.current?.getBoundingClientRect();
+    liSelectedRef?.current?.scrollIntoView({
+      block: 'nearest',
+      behavior: 'auto',
+    });
 
-    // setListBoxStyles((prevState) => ({
-    //   ...prevState,
-    //   top: selectPositionOnScreen?.top,
-    //   left: selectPositionOnScreen?.left,
-    //   minWidth: selectPositionOnScreen?.width,
-    // }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  React.useEffect(() => {
     const updatePosition = () => {
       const selectPositionOnScreen =
         selectContainerRef.current?.getBoundingClientRect();
@@ -61,7 +70,7 @@ export const ListBox = React.forwardRef<
     if (listBoxOpen) {
       updatePosition();
       window.addEventListener('resize', updatePosition);
-      window.addEventListener('scroll', updatePosition, true); // capture phase
+      window.addEventListener('scroll', updatePosition, true);
     }
 
     return () => {
@@ -80,6 +89,19 @@ export const ListBox = React.forwardRef<
     >
       <ul role="listbox" aria-label={label} id={SELECT_FIELD_CONTROLS_ID}>
         {children}
+        {filterResultIsEmpty && (
+          <li
+            tabIndex={-1}
+            aria-disabled={true}
+            key="not-found-values"
+            role="option"
+            id="not-found-values"
+            className="listbox-item-not-found-values"
+            onClick={() => {}}
+          >
+            {notFoundFilterLabel}
+          </li>
+        )}
       </ul>
     </div>
   );
@@ -119,8 +141,13 @@ interface SelectFieldItemProps extends React.ComponentProps<'li'> {
 export const Item = React.forwardRef<HTMLLIElement, SelectFieldItemProps>(
   (props, ref) => {
     const { disabled, children } = props;
-    const { filterValue, valueSelect, activeDescendant, handleOnChangeForm } =
-      React.useContext(SelectFieldContext);
+    const {
+      filterValue,
+      valueSelect,
+      liSelectedRef,
+      activeDescendant,
+      handleOnChangeForm,
+    } = React.useContext(SelectFieldContext);
 
     const isInFocus = Boolean(activeDescendant === props.value);
     const ariaSelected = Boolean(props.value === valueSelect);
@@ -132,7 +159,18 @@ export const Item = React.forwardRef<HTMLLIElement, SelectFieldItemProps>(
 
     return (
       <li
-        ref={ref}
+        ref={(el) => {
+          if (el) {
+            if (ariaSelected) {
+              liSelectedRef.current = el;
+            }
+            if (typeof ref === 'function') {
+              ref(el);
+            } else if (ref) {
+              ref.current = el;
+            }
+          }
+        }}
         key={props.value}
         id={props.value}
         hidden={props.hidden || !hasPartOfFilter}
@@ -158,11 +196,13 @@ export const Item = React.forwardRef<HTMLLIElement, SelectFieldItemProps>(
     );
   }
 );
+
 Item.displayName = 'SelectFieldItem';
 
 interface SelectFieldInputProps extends React.ComponentProps<'input'> {
   label?: string;
   errors?: string[];
+  notFoundFilterLabel?: string;
 }
 
 const NAVIGATION_KEYS = ['Escape', 'ArrowDown', 'ArrowUp', 'Enter'];
@@ -175,6 +215,7 @@ export const Input = React.forwardRef<HTMLInputElement, SelectFieldInputProps>(
       errors,
       children,
       onChange: onChangeForm,
+      notFoundFilterLabel = 'Nenhuma opção encontrada.',
       ...rest
     } = props;
 
@@ -182,10 +223,12 @@ export const Input = React.forwardRef<HTMLInputElement, SelectFieldInputProps>(
     const [filterValue, setFilterValue] = React.useState('');
     const [listBoxOpen, setListBoxOpen] = React.useState(false);
     const [activeDescendant, setActiveDescendant] = React.useState<string>();
+    const [filterResultIsEmpty, setFilterResultIsEmpty] = React.useState(false);
 
     const selectContainerRef = React.useRef<HTMLDivElement | null>(null);
     const selectListBoxRef = React.useRef<HTMLDivElement | null>(null);
     const selectInputRef = React.useRef<HTMLInputElement | null>(null);
+    const liSelectedRef = React.useRef<HTMLLIElement | null>(null);
 
     const hasValidationErrors = Boolean(errors?.length);
     const isReadOnly = Boolean(props.readOnly);
@@ -304,6 +347,7 @@ export const Input = React.forwardRef<HTMLInputElement, SelectFieldInputProps>(
           } else {
             const firstLIOption = liElementsFiltered[0];
             setActiveDescendant(firstLIOption?.id ?? '');
+            setFilterResultIsEmpty(_.isEmpty(liElementsFiltered));
           }
         } else return null;
       });
@@ -314,14 +358,25 @@ export const Input = React.forwardRef<HTMLInputElement, SelectFieldInputProps>(
         label: props.label,
         listBoxOpen,
         filterValue,
+        liSelectedRef,
         nameSelect: props.name?.toString(),
         valueSelect: props.value?.toString(),
         activeDescendant,
         handleOnChangeForm,
         selectContainerRef,
+        filterResultIsEmpty,
+        notFoundFilterLabel,
       }),
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [listBoxOpen, filterValue, props.name, props.value, activeDescendant]
+      [
+        listBoxOpen,
+        filterValue,
+        props.name,
+        props.value,
+        activeDescendant,
+        filterResultIsEmpty,
+        notFoundFilterLabel,
+      ]
     );
 
     return (
@@ -331,7 +386,12 @@ export const Input = React.forwardRef<HTMLInputElement, SelectFieldInputProps>(
           data-state-error={hasValidationErrors}
         >
           {label && (
-            <label className="select-field-label" title={label} htmlFor={name}>
+            <label
+              className="select-field-label"
+              title={label}
+              htmlFor={name}
+              data-state-input-required={props.required}
+            >
               {label}
             </label>
           )}
@@ -352,6 +412,12 @@ export const Input = React.forwardRef<HTMLInputElement, SelectFieldInputProps>(
                   }
                 }
               }}
+              className="select-field-input"
+              placeholder={!label ? name : rest.placeholder}
+              data-state-error={hasValidationErrors}
+              data-state-read-only={isReadOnly}
+              {...rest}
+              id={name}
               type="text"
               role="combobox"
               aria-autocomplete="list"
@@ -359,12 +425,6 @@ export const Input = React.forwardRef<HTMLInputElement, SelectFieldInputProps>(
               aria-controls={SELECT_FIELD_CONTROLS_ID}
               aria-activedescendant={activeDescendant}
               tabIndex={!isReadOnly ? 0 : -1}
-              className="select-field-input"
-              placeholder={!label ? name : rest.placeholder}
-              data-state-error={hasValidationErrors}
-              data-state-read-only={isReadOnly}
-              {...rest}
-              id={name}
               value={inputValue}
               onBlur={handleOnBlur}
               onFocus={handleOnFocus}

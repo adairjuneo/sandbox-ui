@@ -21,7 +21,12 @@ input::-webkit-inner-spin-button {
     text-overflow: ellipsis;
     white-space: nowrap;
 
-    &:has(+ input:required)::after {
+    // &:has(+ input:required)::after {
+    //   content: "*";
+    //   color: var(--font-color);
+    // }
+
+    &[data-state-input-required=true]::after {
       content: "*";
       color: var(--font-color);
     }
@@ -214,7 +219,6 @@ input::-webkit-inner-spin-button {
     background-color: var(--default-bg-color);
     overflow: auto;
     overflow-x: hidden;
-    cursor: pointer;
   }
 
   ul[role="listbox"] li[role="option"] {
@@ -236,11 +240,12 @@ input::-webkit-inner-spin-button {
 
     &.listbox-item-not-found-values {
       text-indent: 10px;
-      font-size: 14px;
-      color: var(--font-disabled-color);
+      font-size: 85%;
+      color: var(--soft-font-color);
       font-style: italic;
       user-select: none;
       pointer-events: none;
+      cursor: default;
     }
   }
 
